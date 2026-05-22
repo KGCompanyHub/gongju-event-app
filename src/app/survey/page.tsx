@@ -14,7 +14,7 @@ const questions: Question[] = [
   {
     id: "gender",
     title: "성별",
-    options: ["남", "여", "그외"],
+    options: ["남", "여"],
   },
   {
     id: "age",
@@ -207,10 +207,6 @@ export default function SurveyPage() {
           <p className="text-sm leading-relaxed text-gray-600">
             간단한 설문을 통해 공주에 대한 관심도와 여행 취향을 확인하고,
             이어지는 퀴즈와 룰렛 이벤트에 참여할 수 있어요.
-          </p>
-
-          <p className="mt-4 text-xs text-gray-400">
-            작성자: 아델앤코콘텐츠랩
           </p>
         </div>
 
