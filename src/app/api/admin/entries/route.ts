@@ -11,19 +11,35 @@ export async function GET(request: Request) {
     );
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data: entries, error: entriesError } = await supabaseAdmin
     .from("event_entries")
     .select("id, created_at, survey, quiz, prize, status")
     .order("created_at", { ascending: false });
 
-  if (error) {
+  if (entriesError) {
     return NextResponse.json(
-      { message: "데이터 조회 실패", error: error.message },
+      { message: "참여자 데이터 조회 실패", error: entriesError.message },
+      { status: 500 }
+    );
+  }
+
+  const { data: inventory, error: inventoryError } = await supabaseAdmin
+    .from("prize_inventory_daily")
+    .select(
+      "event_date, event_start_at, event_end_at, rank, name, limit_count, issued_count, sort_order"
+    )
+    .order("event_date", { ascending: true })
+    .order("sort_order", { ascending: true });
+
+  if (inventoryError) {
+    return NextResponse.json(
+      { message: "경품 수량 조회 실패", error: inventoryError.message },
       { status: 500 }
     );
   }
 
   return NextResponse.json({
-    entries: data,
+    entries: entries || [],
+    inventory: inventory || [],
   });
 }

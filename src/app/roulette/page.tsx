@@ -8,6 +8,8 @@ type Prize = {
   name: string;
   description: string;
   segmentIndex?: number;
+  centerAngle?: number;
+  eventDate?: string;
   wonAt?: string;
 };
 
@@ -24,29 +26,57 @@ const wheelSegments: WheelSegment[] = [
     label: "1등",
     color: "#FDBA74",
     startAngle: 0,
-    endAngle: 90,
-    centerAngle: 45,
+    endAngle: 45,
+    centerAngle: 22.5,
   },
   {
     label: "2등",
     color: "#BFDBFE",
-    startAngle: 90,
-    endAngle: 180,
-    centerAngle: 135,
+    startAngle: 45,
+    endAngle: 90,
+    centerAngle: 67.5,
   },
   {
     label: "3등",
     color: "#FDE68A",
-    startAngle: 180,
-    endAngle: 270,
-    centerAngle: 225,
+    startAngle: 90,
+    endAngle: 135,
+    centerAngle: 112.5,
   },
   {
     label: "꽝",
-    color: "#BBF7D0",
+    color: "#E5E7EB",
+    startAngle: 135,
+    endAngle: 180,
+    centerAngle: 157.5,
+  },
+  {
+    label: "1등",
+    color: "#FDBA74",
+    startAngle: 180,
+    endAngle: 225,
+    centerAngle: 202.5,
+  },
+  {
+    label: "2등",
+    color: "#BFDBFE",
+    startAngle: 225,
+    endAngle: 270,
+    centerAngle: 247.5,
+  },
+  {
+    label: "3등",
+    color: "#FDE68A",
     startAngle: 270,
+    endAngle: 315,
+    centerAngle: 292.5,
+  },
+  {
+    label: "꽝",
+    color: "#E5E7EB",
+    startAngle: 315,
     endAngle: 360,
-    centerAngle: 315,
+    centerAngle: 337.5,
   },
 ];
 
@@ -71,11 +101,12 @@ function describeSlice(startAngle: number, endAngle: number) {
 
   const start = polarToCartesian(centerX, centerY, radius, startAngle);
   const end = polarToCartesian(centerX, centerY, radius, endAngle);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
 
   return [
     `M ${centerX} ${centerY}`,
     `L ${start.x} ${start.y}`,
-    `A ${radius} ${radius} 0 0 1 ${end.x} ${end.y}`,
+    `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`,
     "Z",
   ].join(" ");
 }
@@ -115,7 +146,11 @@ export default function RoulettePage() {
       const result = await response.json();
 
       if (!response.ok) {
-        alert("룰렛 결과 저장 중 오류가 발생했습니다.");
+        alert(
+          result.error ||
+            result.message ||
+            "룰렛 결과 저장 중 오류가 발생했습니다."
+        );
         console.error(result);
         setIsSpinning(false);
         return;
@@ -123,12 +158,10 @@ export default function RoulettePage() {
 
       const prize = result.prize as Prize;
 
-      const segmentIndex = prize.segmentIndex ?? 0;
-      const segmentSize = 90;
-      const segmentCenterAngle = segmentIndex * segmentSize + segmentSize / 2;
+      const targetAngle = prize.centerAngle ?? 157.5;
 
       const currentRotation = ((rotation % 360) + 360) % 360;
-      const targetRotation = (360 - segmentCenterAngle) % 360;
+      const targetRotation = (360 - targetAngle) % 360;
       const extraRotation = (targetRotation - currentRotation + 360) % 360;
 
       const finalRotation = rotation + 360 * 5 + extraRotation;
@@ -173,7 +206,7 @@ export default function RoulettePage() {
         <div className="rounded-3xl bg-white p-6 shadow-md">
           <div className="mb-6 flex justify-center">
             <div className="relative h-72 w-72">
-              <div className="absolute left-1/2 top-[-6px] z-20 -translate-x-1/2 text-4xl text-orange-500">
+              <div className="absolute left-1/2 top-[-8px] z-20 -translate-x-1/2 text-4xl text-orange-500 drop-shadow">
                 ▼
               </div>
 
@@ -184,23 +217,18 @@ export default function RoulettePage() {
                   transform: `rotate(${rotation}deg)`,
                 }}
               >
-                <circle
-                  cx="144"
-                  cy="144"
-                  r="140"
-                  fill="#FDBA74"
-                />
+                <circle cx="144" cy="144" r="140" fill="#FDBA74" />
 
-                {wheelSegments.map((segment) => {
+                {wheelSegments.map((segment, index) => {
                   const labelPosition = polarToCartesian(
                     144,
                     144,
-                    88,
+                    92,
                     segment.centerAngle
                   );
 
                   return (
-                    <g key={segment.label}>
+                    <g key={`${segment.label}-${index}`}>
                       <path
                         d={describeSlice(
                           segment.startAngle,
@@ -216,9 +244,9 @@ export default function RoulettePage() {
                         y={labelPosition.y}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        fontSize="18"
+                        fontSize="15"
                         fontWeight="800"
-                        fill="#ffffff"
+                        fill={segment.label === "꽝" ? "#6B7280" : "#ffffff"}
                       >
                         {segment.label}
                       </text>
@@ -266,7 +294,9 @@ export default function RoulettePage() {
               onClick={handleSpin}
               disabled={isSpinning}
               className={`w-full rounded-full py-4 text-lg font-bold text-white transition ${
-                isSpinning ? "bg-gray-300" : "bg-orange-400"
+                isSpinning
+                  ? "cursor-not-allowed bg-gray-300"
+                  : "bg-orange-400 hover:bg-orange-500"
               }`}
             >
               {isSpinning ? "룰렛 돌아가는 중..." : "룰렛 돌리기"}
@@ -277,7 +307,7 @@ export default function RoulettePage() {
             <div className="text-center">
               <div className="mb-4 rounded-3xl bg-orange-50 p-5">
                 <p className="mb-2 text-sm font-bold text-orange-500">
-                  결과
+                  당첨 결과
                 </p>
 
                 <h2 className="mb-2 text-2xl font-bold text-gray-900">
@@ -293,12 +323,18 @@ export default function RoulettePage() {
                 <p className="text-sm leading-relaxed text-gray-600">
                   {selectedPrize.description}
                 </p>
+
+                {selectedPrize.eventDate && (
+                  <p className="mt-3 text-xs text-gray-400">
+                    행사일: {selectedPrize.eventDate}
+                  </p>
+                )}
               </div>
 
               <button
                 type="button"
                 onClick={goToPrizePage}
-                className="w-full rounded-full bg-orange-400 py-4 text-lg font-bold text-white"
+                className="w-full rounded-full bg-orange-400 py-4 text-lg font-bold text-white hover:bg-orange-500"
               >
                 결과 확인하기
               </button>
@@ -307,8 +343,8 @@ export default function RoulettePage() {
         </div>
 
         <p className="mt-5 text-center text-xs leading-relaxed text-gray-400">
-          실제 운영 시 룰렛 당첨 결과는 서버에서 저장되도록 구성하는 것이
-          안전합니다.
+          룰렛 결과는 서버에서 확정되며, 날짜별 경품 수량에 따라 자동으로
+          관리됩니다.
         </p>
       </section>
     </main>

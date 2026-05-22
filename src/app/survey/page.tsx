@@ -121,9 +121,10 @@ export default function SurveyPage() {
   const router = useRouter();
 
   const [singleAnswers, setSingleAnswers] = useState<Record<string, string>>({});
-  const [multipleAnswers, setMultipleAnswers] = useState<Record<string, string[]>>(
-    {}
-  );
+  const [multipleAnswers, setMultipleAnswers] = useState<
+    Record<string, string[]>
+  >({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectSingleAnswer = (questionId: string, option: string) => {
     setSingleAnswers((prev) => ({
@@ -156,45 +157,78 @@ export default function SurveyPage() {
 
   const isAllAnswered = questions.every(isAnswered);
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (isSubmitting) return;
+
     if (!isAllAnswered) {
-        alert("모든 설문 문항에 답변해주세요.");
-        return;
+      alert("모든 설문 문항에 답변해주세요.");
+      return;
     }
 
-    const surveyData = {
+    setIsSubmitting(true);
+
+    try {
+      const surveyData = {
         singleAnswers,
         multipleAnswers,
         submittedAt: new Date().toISOString(),
-    };
+      };
 
-    const response = await fetch("/api/survey", {
+      const response = await fetch("/api/survey", {
         method: "POST",
         headers: {
-        "Content-Type": "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(surveyData),
-    });
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (!response.ok) {
+      if (!response.ok) {
         alert("설문 저장 중 오류가 발생했습니다.");
         console.error(result);
+        setIsSubmitting(false);
         return;
+      }
+
+      localStorage.setItem("gongju-popup-entry-id", result.id);
+      localStorage.setItem("gongju-popup-survey", JSON.stringify(surveyData));
+
+      router.push("/quiz");
+    } catch (error) {
+      alert("설문 저장 중 오류가 발생했습니다.");
+      console.error(error);
+      setIsSubmitting(false);
     }
-
-    localStorage.setItem("gongju-popup-entry-id", result.id);
-    localStorage.setItem("gongju-popup-survey", JSON.stringify(surveyData));
-
-    router.push("/quiz");
-    };
+  };
 
   return (
-    <main className="min-h-screen bg-[#FFF7E8] px-5 py-8">
-      <section className="mx-auto w-full max-w-md">
+    <>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: -1,
+        pointerEvents: "none",
+      }}
+    />
+    <main
+      className="min-h-screen bg-[#FFF7E8] px-5 py-8"
+      style={{
+        position: "relative",
+        isolation: "isolate",
+        touchAction: "auto",
+      }}
+    >
+      <section
+        className="mx-auto w-full max-w-md"
+        style={{
+          position: "relative",
+          zIndex: 9999,
+        }}
+      >
         <div className="mb-6 rounded-3xl bg-white p-6 shadow-md">
           <p className="mb-2 text-sm font-bold text-orange-500">
             공주팝업행사 웹앱 설문조사
@@ -210,12 +244,20 @@ export default function SurveyPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+          style={{
+            position: "relative",
+            zIndex: 99999,
+            pointerEvents: "auto",
+          }}
+        >
           {questions.map((question, questionIndex) => {
             return (
               <div
                 key={question.id}
-                className="rounded-3xl bg-white p-5 shadow-md"
+                className="relative z-30 rounded-3xl bg-white p-5 shadow-md"
               >
                 <div className="mb-4">
                   <p className="mb-1 text-xs font-bold text-orange-400">
@@ -233,7 +275,7 @@ export default function SurveyPage() {
                   )}
                 </div>
 
-                <div className="space-y-3">
+                <div className="relative z-30 space-y-3">
                   {question.options.map((option) => {
                     const isSelected = question.multiple
                       ? (multipleAnswers[question.id] || []).includes(option)
@@ -241,6 +283,13 @@ export default function SurveyPage() {
 
                     return (
                       <button
+                        style={{
+                          position: "relative",
+                          zIndex: 999999,
+                          pointerEvents: "auto",
+                          touchAction: "manipulation",
+                          WebkitTapHighlightColor: "transparent",
+                        }}
                         key={option}
                         type="button"
                         onClick={() =>
@@ -248,7 +297,8 @@ export default function SurveyPage() {
                             ? toggleMultipleAnswer(question.id, option)
                             : selectSingleAnswer(question.id, option)
                         }
-                        className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                        onTouchStart={() => {}}
+                        className={`relative z-30 block w-full cursor-pointer touch-manipulation select-none rounded-2xl border px-4 py-4 text-left text-base transition active:scale-[0.99] ${
                           isSelected
                             ? "border-orange-400 bg-orange-100 font-bold text-orange-700"
                             : "border-orange-200 bg-white text-gray-700"
@@ -263,16 +313,20 @@ export default function SurveyPage() {
             );
           })}
 
-          <div className="rounded-3xl bg-white p-6 text-center shadow-md">
-            <div className="mb-4 text-5xl">🎉</div>
-
+          <div className="relative z-30 rounded-3xl bg-white p-6 text-center shadow-md">
+            <div className="mb-4 flex justify-center">
+              <img
+                src="/images/icon_on_x3.png"
+                alt="설문 완료 이미지"
+                className="h-24 w-24 object-contain"
+              />
+            </div>
             <h2 className="mb-3 text-xl font-bold text-gray-900">
               설문 참여 미션 성공!
             </h2>
 
             <p className="text-sm leading-relaxed text-gray-600">
-              남겨주신 의견은 공주의 즐거운 여행 콘텐츠를 만드는 데 큰 힘이
-              됩니다.
+              남겨주신 의견은 공주의 즐거운 여행 콘텐츠를 만드는데 큰 힘이 됩니다.
               <br />
               행복하세요~!
             </p>
@@ -280,16 +334,20 @@ export default function SurveyPage() {
 
           <button
             type="submit"
-            className={`w-full rounded-full py-4 text-lg font-bold text-white transition ${
-              isAllAnswered
-                ? "bg-orange-400"
-                : "bg-gray-300"
+            disabled={isSubmitting}
+            className={`relative z-30 w-full cursor-pointer touch-manipulation rounded-full py-4 text-lg font-bold text-white transition active:scale-[0.99] disabled:cursor-not-allowed ${
+              isAllAnswered && !isSubmitting ? "bg-orange-400" : "bg-gray-300"
             }`}
+            style={{
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+            }}
           >
-            저장하기
+            {isSubmitting ? "저장 중..." : "저장하기"}
           </button>
         </form>
       </section>
     </main>
+    </>
   );
 }

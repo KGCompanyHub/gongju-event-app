@@ -18,34 +18,102 @@ type EventEntry = {
     rank?: string;
     name?: string;
     description?: string;
+    eventDate?: string;
+    wonAt?: string;
   } | null;
+};
+
+type PrizeInventory = {
+  event_date: string;
+  event_start_at: string | null;
+  event_end_at: string | null;
+  rank: string;
+  name: string;
+  limit_count: number | null;
+  issued_count: number;
+  sort_order: number;
 };
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [entries, setEntries] = useState<EventEntry[]>([]);
+  const [inventory, setInventory] = useState<PrizeInventory[]>([]);
+  const [showTestInventory, setShowTestInventory] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const getStatusLabel = (status: string) => {
+    const statusMap: Record<string, string> = {
+      survey_done: "설문 완료",
+      quiz_done: "퀴즈 완료",
+      prize_done: "룰렛 완료",
+      coupon_used: "경품 수령 완료",
+    };
+
+    return statusMap[status] || status;
+  };
+
+  const getEventDayLabel = (eventDate: string) => {
+    if (eventDate === "2026-05-23") {
+      return `1일차 (${eventDate})`;
+    }
+
+    if (eventDate === "2026-05-24") {
+      return `2일차 (${eventDate})`;
+    }
+
+    return `테스트 (${eventDate})`;
+  };
+
+  const formatTimeRange = (
+    startAt: string | null,
+    endAt: string | null
+  ) => {
+    if (!startAt || !endAt) {
+      return "-";
+    }
+
+    const start = startAt.replace("T", " ").slice(11, 16);
+    const end = endAt.replace("T", " ").slice(11, 16);
+
+    return `${start} ~ ${end}`;
+  };
 
   const loadEntries = async () => {
-    const response = await fetch("/api/admin/entries", {
-      headers: {
-        "x-admin-password": password,
-      },
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      alert(result.message || "관리자 조회 실패");
+    if (!password.trim()) {
+      alert("관리자 비밀번호를 입력해주세요.");
       return;
     }
 
-    setEntries(result.entries);
-    setIsLoaded(true);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/entries", {
+        method: "GET",
+        headers: {
+          "x-admin-password": password,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.message || "관리자 데이터 조회에 실패했습니다.");
+        console.error(result);
+        return;
+      }
+
+      setEntries(result.entries || []);
+      setInventory(result.inventory || []);
+      setIsLoaded(true);
+    } catch (error) {
+      alert("관리자 데이터 조회 중 오류가 발생했습니다.");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const totalCount = entries.length;
-  
   const csvSafe = (value: unknown) => {
     if (value === null || value === undefined) {
       return '""';
@@ -72,6 +140,7 @@ export default function AdminPage() {
       "퀴즈 점수",
       "퀴즈 정답 수",
       "퀴즈 전체 문항 수",
+      "당첨 행사일",
       "당첨 등급",
       "당첨 상품",
       "상태",
@@ -95,10 +164,13 @@ export default function AdminPage() {
         satisfaction.join(", "),
         single.revisit || "",
         entry.quiz
-          ? `${entry.quiz.correctCount || 0} / ${entry.quiz.totalCount || 0}`
+          ? `${entry.quiz.correctCount || 0} / ${
+              entry.quiz.totalCount || 0
+            }`
           : "",
         entry.quiz?.correctCount ?? "",
         entry.quiz?.totalCount ?? "",
+        entry.prize?.eventDate || "",
         entry.prize?.rank || "",
         entry.prize?.name || "",
         getStatusLabel(entry.status),
@@ -125,44 +197,47 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  const completedSurveyCount = entries.filter(
-    (entry) => entry.survey
+  const totalCount = entries.length;
+
+  const surveyCount = entries.filter((entry) => entry.survey).length;
+
+  const prizeDoneCount = entries.filter((entry) => entry.prize).length;
+
+  const winnerCount = entries.filter(
+    (entry) => entry.prize && entry.prize.rank !== "꽝"
   ).length;
 
-  const prizeCount = entries.filter(
-    (entry) => entry.prize
-  ).length;
-  const getStatusLabel = (status: string) => {
-    const statusMap: Record<string, string> = {
-      survey_done: "설문 완료",
-      quiz_done: "퀴즈 완료",
-      prize_done: "룰렛 완료",
-      coupon_used: "경품 수령 완료",
-    };
+  const officialEventDates = ["2026-05-23", "2026-05-24"];
 
-    return statusMap[status] || status;
-  };
+  const testInventoryCount = inventory.filter(
+    (item) => !officialEventDates.includes(item.event_date)
+  ).length;
+
+  const visibleInventory = showTestInventory
+    ? inventory
+    : inventory.filter((item) => officialEventDates.includes(item.event_date));
+
   return (
-    
     <main className="min-h-screen bg-[#FFF7E8] px-5 py-8">
-      <section className="mx-auto w-full max-w-5xl">
+      <section className="mx-auto w-full max-w-7xl">
         <div className="mb-6 rounded-3xl bg-white p-6 shadow-md">
           <p className="mb-2 text-sm font-bold text-orange-500">
             공주팝업행사 관리자
           </p>
 
           <h1 className="mb-3 text-2xl font-bold text-gray-900">
-            참여 현황 대시보드
+            참여 데이터 관리
           </h1>
 
-          <p className="text-sm text-gray-600">
-            설문 참여자, 퀴즈 진행, 룰렛 당첨 현황을 확인할 수 있습니다.
+          <p className="text-sm leading-relaxed text-gray-600">
+            설문, 퀴즈, 룰렛 결과와 날짜별 경품 발급 수량을 확인할 수
+            있습니다.
           </p>
         </div>
 
         {!isLoaded && (
-          <div className="mb-6 rounded-3xl bg-white p-6 shadow-md">
-            <label className="mb-2 block text-sm font-bold text-gray-700">
+          <div className="mx-auto max-w-md rounded-3xl bg-white p-6 shadow-md">
+            <label className="mb-2 block text-sm font-bold text-gray-800">
               관리자 비밀번호
             </label>
 
@@ -170,72 +245,184 @@ export default function AdminPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mb-4 w-full rounded-2xl border border-orange-200 px-4 py-3 outline-none"
-              placeholder="비밀번호를 입력하세요"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  loadEntries();
+                }
+              }}
+              className="mb-4 w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-orange-400"
+              placeholder="비밀번호 입력"
             />
 
             <button
               type="button"
               onClick={loadEntries}
-              className="w-full rounded-full bg-orange-400 py-4 font-bold text-white"
+              disabled={isLoading}
+              className="w-full rounded-full bg-orange-400 py-4 text-lg font-bold text-white hover:bg-orange-500 disabled:bg-gray-300"
             >
-              관리자 데이터 보기
+              {isLoading ? "불러오는 중..." : "관리자 데이터 보기"}
             </button>
           </div>
         )}
 
         {isLoaded && (
           <>
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-3xl bg-white p-6 shadow-md">
-                <p className="text-sm text-gray-500">전체 참여 수</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div className="rounded-3xl bg-white p-5 shadow-md">
+                <p className="mb-1 text-sm font-bold text-gray-500">
+                  전체 참여자
+                </p>
+                <p className="text-3xl font-black text-gray-900">
                   {totalCount}
                 </p>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow-md">
-                <p className="text-sm text-gray-500">설문 완료 수</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {completedSurveyCount}
+              <div className="rounded-3xl bg-white p-5 shadow-md">
+                <p className="mb-1 text-sm font-bold text-gray-500">
+                  설문 완료
+                </p>
+                <p className="text-3xl font-black text-gray-900">
+                  {surveyCount}
                 </p>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow-md">
-                <p className="text-sm text-gray-500">룰렛 참여 수</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {prizeCount}
+              <div className="rounded-3xl bg-white p-5 shadow-md">
+                <p className="mb-1 text-sm font-bold text-gray-500">
+                  룰렛 완료
+                </p>
+                <p className="text-3xl font-black text-gray-900">
+                  {prizeDoneCount}
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-white p-5 shadow-md">
+                <p className="mb-1 text-sm font-bold text-gray-500">
+                  실제 당첨자
+                </p>
+                <p className="text-3xl font-black text-orange-600">
+                  {winnerCount}
                 </p>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-3xl bg-white shadow-md">
-              <div className="border-b border-gray-100 p-5">
+            <div className="mb-6 overflow-hidden rounded-3xl bg-white shadow-md">
+              <div className="flex items-center justify-between border-b border-gray-100 p-5">
                 <h2 className="font-bold text-gray-900">
-                  참여자 목록
+                  날짜별 경품 발급 현황
                 </h2>
 
-                <button
-                  type="button"
-                  onClick={downloadExcel}
-                  style={{
-                    backgroundColor: "#f97316",
-                    color: "#ffffff",
-                    border: "2px solid #c2410c",
-                    borderRadius: "12px",
-                    padding: "12px 24px",
-                    fontSize: "16px",
-                    fontWeight: 900,
-                    boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
-                    cursor: "pointer",
-                  }}
-                >
-                엑셀 다운로드
-              </button>
+                {testInventoryCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTestInventory((prev) => !prev)}
+                    className="rounded-full bg-gray-900 px-4 py-2 text-sm font-bold text-white"
+                  >
+                    {showTestInventory
+                      ? "테스트 데이터 숨기기"
+                      : `테스트 데이터 보기 (${testInventoryCount})`}
+                  </button>
+                )}
               </div>
-              <div className="overflow-hidden rounded-3xl bg-white shadow-md"></div>   
+
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1800px] text-left text-sm">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-orange-100 text-sm font-bold text-gray-900">
+                    <tr>
+                      <th className="px-4 py-3">행사일</th>
+                      <th className="px-4 py-3">운영 시간</th>
+                      <th className="px-4 py-3">등수</th>
+                      <th className="px-4 py-3">상품</th>
+                      <th className="px-4 py-3">발급 수량</th>
+                      <th className="px-4 py-3">잔여 수량</th>
+                      <th className="px-4 py-3">제한 수량</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="text-gray-900">
+                    {visibleInventory.map((item) => {
+                      const remaining =
+                        item.limit_count === null
+                          ? "-"
+                          : Math.max(item.limit_count - item.issued_count, 0);
+
+                      return (
+                        <tr
+                          key={`${item.event_date}-${item.rank}`}
+                          className="border-t border-gray-200 bg-white hover:bg-orange-50"
+                        >
+                          <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
+                            {getEventDayLabel(item.event_date)}
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
+                            {formatTimeRange(item.event_start_at, item.event_end_at)}
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-4 font-bold text-orange-600">
+                            {item.rank}
+                          </td>
+
+                          <td className="min-w-[180px] px-4 py-4 font-bold text-gray-900">
+                            {item.name}
+                          </td>
+
+                          <td className="px-4 py-4 font-bold text-gray-900">
+                            {item.issued_count}
+                          </td>
+
+                          <td className="px-4 py-4 font-bold text-gray-900">
+                            {remaining}
+                          </td>
+
+                          <td className="px-4 py-4 font-bold text-gray-900">
+                            {item.limit_count ?? "제한 없음"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {visibleInventory.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-4 py-8 text-center font-bold text-gray-400"
+                        >
+                          등록된 경품 수량 데이터가 없습니다.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mb-6 flex justify-end">
+              <button
+                type="button"
+                onClick={downloadExcel}
+                style={{
+                  backgroundColor: "#f97316",
+                  color: "#ffffff",
+                  border: "2px solid #c2410c",
+                  borderRadius: "12px",
+                  padding: "12px 24px",
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
+                  cursor: "pointer",
+                }}
+              >
+                📥 엑셀 다운로드
+              </button>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl bg-white shadow-md">
+              <div className="border-b border-gray-100 p-5">
+                <h2 className="font-bold text-gray-900">참여자 목록</h2>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1900px] text-left text-sm">
                   <thead className="bg-orange-100 text-sm font-bold text-gray-900">
                     <tr>
                       <th className="px-4 py-3">참여일시</th>
@@ -250,6 +437,7 @@ export default function AdminPage() {
                       <th className="px-4 py-3">만족했던 부분</th>
                       <th className="px-4 py-3">방문 의향</th>
                       <th className="px-4 py-3">퀴즈 점수</th>
+                      <th className="px-4 py-3">당첨 행사일</th>
                       <th className="px-4 py-3">당첨</th>
                       <th className="px-4 py-3">상태</th>
                     </tr>
@@ -303,7 +491,9 @@ export default function AdminPage() {
                           </td>
 
                           <td className="min-w-[240px] px-4 py-4 font-bold text-gray-900">
-                            {satisfaction.length > 0 ? satisfaction.join(", ") : "-"}
+                            {satisfaction.length > 0
+                              ? satisfaction.join(", ")
+                              : "-"}
                           </td>
 
                           <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
@@ -318,7 +508,11 @@ export default function AdminPage() {
                               : "-"}
                           </td>
 
-                          <td className="min-w-[180px] px-4 py-4 font-bold text-orange-600">
+                          <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
+                            {entry.prize?.eventDate || "-"}
+                          </td>
+
+                          <td className="min-w-[200px] px-4 py-4 font-bold text-orange-600">
                             {entry.prize
                               ? `${entry.prize.rank} - ${entry.prize.name}`
                               : "-"}
@@ -332,6 +526,17 @@ export default function AdminPage() {
                         </tr>
                       );
                     })}
+
+                    {entries.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={15}
+                          className="px-4 py-8 text-center font-bold text-gray-400"
+                        >
+                          참여 데이터가 없습니다.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
