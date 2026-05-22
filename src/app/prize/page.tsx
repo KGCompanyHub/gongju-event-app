@@ -214,7 +214,7 @@ export default function PrizePage() {
                 color: "#f97316",
               }}
             >
-              당첨 시 스크린샷을 찍어
+              당첨 화면을 저장해 주세요.
             </p>
 
             <p
@@ -225,7 +225,9 @@ export default function PrizePage() {
                 color: "#4b5563",
               }}
             >
-              아래 공주문화관광재단 인스타에 DM으로 보내주세요.
+              공주문화관광재단 인스타그램 팔로우 후,
+              <br />
+              DM으로 보내주시면 확인해드립니다.
             </p>
           </div>
         </div>
