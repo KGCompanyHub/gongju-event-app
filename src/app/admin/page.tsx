@@ -94,11 +94,11 @@ export default function AdminPage() {
   };
 
   const getEventDayLabel = (eventDate: string) => {
-    if (eventDate === "2026-05-23") {
+    if (eventDate === "2026-05-24") {
       return `1일차 (${eventDate})`;
     }
 
-    if (eventDate === "2026-05-24") {
+    if (eventDate === "2026-05-25") {
       return `2일차 (${eventDate})`;
     }
 
@@ -244,7 +244,7 @@ export default function AdminPage() {
 
   const winnerCount = entries.filter((entry) => isWinnerEntry(entry)).length;
 
-  const officialEventDates = ["2026-05-23", "2026-05-24"];
+  const officialEventDates = ["2026-05-24", "2026-05-25"];
 
   const testInventoryCount = inventory.filter(
     (item) => !officialEventDates.includes(item.event_date)

@@ -30,7 +30,7 @@ const questions: Question[] = [
   },
   {
     id: "job",
-    title: "당신의 직업군은 체크해주세요.",
+    title: "당신의 직업군을 체크해주세요.",
     options: ["학생", "직장인", "자영업자", "기타"],
   },
   {
