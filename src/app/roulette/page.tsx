@@ -343,8 +343,7 @@ export default function RoulettePage() {
         </div>
 
         <p className="mt-5 text-center text-xs leading-relaxed text-gray-400">
-          룰렛 결과는 서버에서 확정되며, 날짜별 경품 수량에 따라 자동으로
-          관리됩니다.
+          룰렛 결과는 서버에 저장이 됩니다.
         </p>
       </section>
     </main>

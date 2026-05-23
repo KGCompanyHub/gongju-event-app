@@ -2,6 +2,31 @@
 
 import { useState } from "react";
 
+function formatKoreanDateTime(value?: string) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function getVerifyCode(entryId?: string) {
+  if (!entryId) return "-";
+
+  return entryId.replace(/-/g, "").slice(-8).toUpperCase();
+}
+
 type EventEntry = {
   id: string;
   created_at: string;
@@ -19,7 +44,9 @@ type EventEntry = {
     name?: string;
     description?: string;
     eventDate?: string;
+    event_date?: string;
     wonAt?: string;
+    won_at?: string;
   } | null;
 };
 
@@ -47,10 +74,23 @@ export default function AdminPage() {
       survey_done: "설문 완료",
       quiz_done: "퀴즈 완료",
       prize_done: "룰렛 완료",
+      roulette_done: "룰렛 완료",
       coupon_used: "경품 수령 완료",
     };
 
     return statusMap[status] || status;
+  };
+
+  const getPrizeEventDate = (entry: EventEntry) => {
+    return entry.prize?.eventDate || entry.prize?.event_date || "";
+  };
+
+  const getPrizeWonAt = (entry: EventEntry) => {
+    return entry.prize?.wonAt || entry.prize?.won_at || "";
+  };
+
+  const isWinnerEntry = (entry: EventEntry) => {
+    return Boolean(entry.prize?.rank && entry.prize.rank !== "꽝");
   };
 
   const getEventDayLabel = (eventDate: string) => {
@@ -65,10 +105,7 @@ export default function AdminPage() {
     return `테스트 (${eventDate})`;
   };
 
-  const formatTimeRange = (
-    startAt: string | null,
-    endAt: string | null
-  ) => {
+  const formatTimeRange = (startAt: string | null, endAt: string | null) => {
     if (!startAt || !endAt) {
       return "-";
     }
@@ -130,7 +167,7 @@ export default function AdminPage() {
       "성별",
       "연령대",
       "직업군",
-      "행사 인지 경로",
+      "공주 인지 경로",
       "방문 목적",
       "공주 인지도",
       "공주를 떠올렸을 때 먼저 생각나는 것",
@@ -143,6 +180,8 @@ export default function AdminPage() {
       "당첨 행사일",
       "당첨 등급",
       "당첨 상품",
+      "당첨 시간",
+      "인증 코드",
       "상태",
     ];
 
@@ -150,9 +189,11 @@ export default function AdminPage() {
       const single = entry.survey?.singleAnswers || {};
       const multiple = entry.survey?.multipleAnswers || {};
       const satisfaction = multiple.satisfaction || [];
+      const prizeWonAt = getPrizeWonAt(entry);
+      const isWinner = isWinnerEntry(entry);
 
       return [
-        new Date(entry.created_at).toLocaleString(),
+        formatKoreanDateTime(entry.created_at),
         single.gender || "",
         single.age || "",
         single.job || "",
@@ -164,15 +205,15 @@ export default function AdminPage() {
         satisfaction.join(", "),
         single.revisit || "",
         entry.quiz
-          ? `${entry.quiz.correctCount || 0} / ${
-              entry.quiz.totalCount || 0
-            }`
+          ? `${entry.quiz.correctCount || 0} / ${entry.quiz.totalCount || 0}`
           : "",
         entry.quiz?.correctCount ?? "",
         entry.quiz?.totalCount ?? "",
-        entry.prize?.eventDate || "",
+        getPrizeEventDate(entry),
         entry.prize?.rank || "",
         entry.prize?.name || "",
+        isWinner && prizeWonAt ? formatKoreanDateTime(prizeWonAt) : "",
+        isWinner ? getVerifyCode(entry.id) : "",
         getStatusLabel(entry.status),
       ];
     });
@@ -198,14 +239,10 @@ export default function AdminPage() {
   };
 
   const totalCount = entries.length;
-
   const surveyCount = entries.filter((entry) => entry.survey).length;
-
   const prizeDoneCount = entries.filter((entry) => entry.prize).length;
 
-  const winnerCount = entries.filter(
-    (entry) => entry.prize && entry.prize.rank !== "꽝"
-  ).length;
+  const winnerCount = entries.filter((entry) => isWinnerEntry(entry)).length;
 
   const officialEventDates = ["2026-05-23", "2026-05-24"];
 
@@ -355,7 +392,10 @@ export default function AdminPage() {
                           </td>
 
                           <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
-                            {formatTimeRange(item.event_start_at, item.event_end_at)}
+                            {formatTimeRange(
+                              item.event_start_at,
+                              item.event_end_at
+                            )}
                           </td>
 
                           <td className="whitespace-nowrap px-4 py-4 font-bold text-orange-600">
@@ -422,7 +462,7 @@ export default function AdminPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1900px] text-left text-sm">
+                <table className="w-full min-w-[2100px] text-left text-sm">
                   <thead className="bg-orange-100 text-sm font-bold text-gray-900">
                     <tr>
                       <th className="px-4 py-3">참여일시</th>
@@ -439,6 +479,8 @@ export default function AdminPage() {
                       <th className="px-4 py-3">퀴즈 점수</th>
                       <th className="px-4 py-3">당첨 행사일</th>
                       <th className="px-4 py-3">당첨</th>
+                      <th className="px-4 py-3">당첨 시간</th>
+                      <th className="px-4 py-3">인증 코드</th>
                       <th className="px-4 py-3">상태</th>
                     </tr>
                   </thead>
@@ -448,6 +490,8 @@ export default function AdminPage() {
                       const single = entry.survey?.singleAnswers || {};
                       const multiple = entry.survey?.multipleAnswers || {};
                       const satisfaction = multiple.satisfaction || [];
+                      const prizeWonAt = getPrizeWonAt(entry);
+                      const isWinner = isWinnerEntry(entry);
 
                       return (
                         <tr
@@ -455,7 +499,7 @@ export default function AdminPage() {
                           className="border-t border-gray-200 bg-white hover:bg-orange-50"
                         >
                           <td className="whitespace-nowrap px-4 py-4 font-medium text-gray-800">
-                            {new Date(entry.created_at).toLocaleString()}
+                            {formatKoreanDateTime(entry.created_at)}
                           </td>
 
                           <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
@@ -509,13 +553,23 @@ export default function AdminPage() {
                           </td>
 
                           <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
-                            {entry.prize?.eventDate || "-"}
+                            {getPrizeEventDate(entry) || "-"}
                           </td>
 
-                          <td className="min-w-[200px] px-4 py-4 font-bold text-orange-600">
+                          <td className="min-w-[220px] px-4 py-4 font-bold text-orange-600">
                             {entry.prize
                               ? `${entry.prize.rank} - ${entry.prize.name}`
                               : "-"}
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
+                            {isWinner && prizeWonAt
+                              ? formatKoreanDateTime(prizeWonAt)
+                              : "-"}
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-4 font-black text-[#632713]">
+                            {isWinner ? getVerifyCode(entry.id) : "-"}
                           </td>
 
                           <td className="whitespace-nowrap px-4 py-4">
@@ -530,7 +584,7 @@ export default function AdminPage() {
                     {entries.length === 0 && (
                       <tr>
                         <td
-                          colSpan={15}
+                          colSpan={17}
                           className="px-4 py-8 text-center font-bold text-gray-400"
                         >
                           참여 데이터가 없습니다.

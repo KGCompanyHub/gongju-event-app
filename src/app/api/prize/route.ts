@@ -16,7 +16,6 @@ type DrawPrizeResult = {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
     const { entryId } = body;
 
     if (!entryId) {
@@ -32,9 +31,12 @@ export async function POST(request: Request) {
       })
       .single<DrawPrizeResult>();
 
-    if (error) {
+    if (error || !data) {
       return NextResponse.json(
-        { message: "룰렛 결과 저장 실패", error: error.message },
+        {
+          message: "룰렛 결과 저장 실패",
+          error: error?.message || "룰렛 결과 데이터가 없습니다.",
+        },
         { status: 500 }
       );
     }
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
       segmentIndex: data.segment_index,
       centerAngle: Number(data.center_angle),
       eventDate: data.event_date,
-      wonAt: data.won_at,
+      wonAt: data.won_at || new Date().toISOString(),
     };
 
     return NextResponse.json({

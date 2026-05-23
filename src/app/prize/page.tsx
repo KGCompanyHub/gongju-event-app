@@ -10,16 +10,47 @@ type PrizeResult = {
   wonAt: string;
 };
 
+function formatKoreanDateTime(value?: string) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function getVerifyCode(entryId: string) {
+  if (!entryId) return "-";
+
+  return entryId.replace(/-/g, "").slice(-8).toUpperCase();
+}
+
 export default function PrizePage() {
   const [prize, setPrize] = useState<PrizeResult | null>(null);
+  const [entryId, setEntryId] = useState("");
   const captureRef = useRef<HTMLDivElement | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
   useEffect(() => {
     const savedPrize = localStorage.getItem("gongju-popup-prize");
+    const savedEntryId = localStorage.getItem("gongju-popup-entry-id");
 
     if (savedPrize) {
       setPrize(JSON.parse(savedPrize));
+    }
+
+    if (savedEntryId) {
+      setEntryId(savedEntryId);
     }
   }, []);
 
@@ -93,145 +124,198 @@ export default function PrizePage() {
     );
   }
 
+  const isWinner = prize.rank !== "꽝";
+  const issuedAtText = formatKoreanDateTime(prize.wonAt);
+  const verifyCode = getVerifyCode(entryId);
+
   return (
     <>
-      {/* 캡처 전용 숨김 카드 */}
-      <div
-        ref={captureRef}
-        style={{
-          position: "fixed",
-          left: "-10000px",
-          top: "0px",
-          width: "390px",
-          padding: "20px",
-          backgroundColor: "#FFF7E8",
-          color: "#111827",
-          fontFamily: "Arial, Apple SD Gothic Neo, Malgun Gothic, sans-serif",
-          pointerEvents: "none",
-        }}
-      >
+      {isWinner && (
         <div
+          ref={captureRef}
           style={{
-            width: "100%",
-            boxSizing: "border-box",
-            borderRadius: "24px",
-            backgroundColor: "#ffffff",
-            padding: "28px 22px",
-            textAlign: "center",
-            boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
+            position: "fixed",
+            left: "-10000px",
+            top: "0px",
+            width: "390px",
+            padding: "20px",
+            backgroundColor: "#FFF7E8",
+            color: "#111827",
+            fontFamily: "Arial, Apple SD Gothic Neo, Malgun Gothic, sans-serif",
+            pointerEvents: "none",
           }}
         >
           <div
             style={{
-              marginBottom: "20px",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <img
-              src={
-                prize.rank === "꽝"
-                  ? "/images/prize-fail.gif"
-                  : "/images/prize-win.gif"
-              }
-              alt={prize.rank === "꽝" ? "아쉬운 결과" : "당첨 축하"}
-              style={{
-                width: "128px",
-                height: "128px",
-                objectFit: "contain",
-                display: "block",
-              }}
-            />
-          </div>
-
-          <p
-            style={{
-              margin: "0 0 8px",
-              fontSize: "14px",
-              fontWeight: 900,
-              color: "#f97316",
-            }}
-          >
-            공주팝업행사 이벤트 당첨
-          </p>
-
-          <h1
-            style={{
-              margin: "0 0 18px",
-              fontSize: "30px",
-              lineHeight: 1.25,
-              fontWeight: 900,
-              color: "#111827",
-            }}
-          >
-            {prize.rank === "꽝" ? "아쉽지만 꽝!" : `${prize.rank} 당첨!`}
-          </h1>
-
-          <div
-            style={{
-              marginBottom: "24px",
+              width: "100%",
+              boxSizing: "border-box",
               borderRadius: "24px",
-              backgroundColor: "#fff7ed",
-              padding: "20px",
-            }}
-          >
-            <p
-              style={{
-                margin: "0 0 10px",
-                fontSize: "20px",
-                fontWeight: 900,
-                color: "#111827",
-              }}
-            >
-              {prize.name}
-            </p>
-
-            <p
-              style={{
-                margin: 0,
-                fontSize: "14px",
-                lineHeight: 1.6,
-                color: "#4b5563",
-              }}
-            >
-              {prize.description}
-            </p>
-          </div>
-
-          <div
-            style={{
-              border: "1px dashed #fdba74",
-              borderRadius: "16px",
-              padding: "16px",
               backgroundColor: "#ffffff",
+              padding: "28px 22px",
+              textAlign: "center",
+              boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
             }}
           >
+            <div
+              style={{
+                marginBottom: "20px",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src="/images/prize-win.gif"
+                alt="당첨 축하"
+                style={{
+                  width: "128px",
+                  height: "128px",
+                  objectFit: "contain",
+                  display: "block",
+                }}
+              />
+            </div>
+
             <p
               style={{
-                margin: "0 0 6px",
-                fontSize: "13px",
+                margin: "0 0 8px",
+                fontSize: "14px",
                 fontWeight: 900,
                 color: "#f97316",
               }}
             >
-              당첨 화면을 저장해 주세요.
+              공주팝업행사 이벤트 당첨
             </p>
 
-            <p
+            <h1
               style={{
-                margin: 0,
-                fontSize: "14px",
-                lineHeight: 1.5,
-                color: "#4b5563",
+                margin: "0 0 18px",
+                fontSize: "30px",
+                lineHeight: 1.25,
+                fontWeight: 900,
+                color: "#111827",
               }}
             >
-              공주문화관광재단 인스타그램 팔로우 후,
-              <br />
-              DM으로 보내주시면 확인해드립니다.
-            </p>
+              {prize.rank} 당첨!
+            </h1>
+
+            <div
+              style={{
+                marginBottom: "24px",
+                borderRadius: "24px",
+                backgroundColor: "#fff7ed",
+                padding: "20px",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: "20px",
+                  fontWeight: 900,
+                  color: "#111827",
+                }}
+              >
+                {prize.name}
+              </p>
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                  color: "#4b5563",
+                }}
+              >
+                {prize.description}
+              </p>
+            </div>
+
+            <div
+              style={{
+                marginBottom: "24px",
+                borderRadius: "16px",
+                backgroundColor: "#FFF7E8",
+                padding: "16px",
+                textAlign: "left",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "13px",
+                  fontWeight: 900,
+                  color: "#f97316",
+                }}
+              >
+                당첨 확인 정보
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  color: "#4b5563",
+                }}
+              >
+                <span style={{ fontWeight: 900 }}>발급시간</span>
+                <span style={{ fontWeight: 900, color: "#111827" }}>
+                  {issuedAtText}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "14px",
+                  color: "#4b5563",
+                }}
+              >
+                <span style={{ fontWeight: 900 }}>인증코드</span>
+                <span style={{ fontWeight: 900, color: "#632713" }}>
+                  {verifyCode}
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                border: "1px dashed #fdba74",
+                borderRadius: "16px",
+                padding: "16px",
+                backgroundColor: "#ffffff",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 6px",
+                  fontSize: "13px",
+                  fontWeight: 900,
+                  color: "#f97316",
+                }}
+              >
+                당첨 화면을 저장해 주세요.
+              </p>
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  lineHeight: 1.5,
+                  color: "#4b5563",
+                }}
+              >
+                공주문화관광재단 인스타그램 팔로우 후,
+                <br />
+                DM으로 보내주시면 확인해드립니다.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <main className="min-h-screen bg-[#FFF7E8] px-5 py-8">
         <section className="mx-auto flex min-h-[80vh] w-full max-w-md items-center justify-center">
@@ -266,26 +350,66 @@ export default function PrizePage() {
               </p>
             </div>
 
-            <div className="mb-6 rounded-2xl border border-dashed border-orange-300 p-4">
-              <p className="mb-1 text-xs font-bold text-orange-500">
-                당첨 화면을 저장해 주세요.
-              </p>
+            {isWinner && (
+              <>
+                <div className="mb-6 rounded-2xl bg-[#FFF7E8] p-4 text-left">
+                  <p className="mb-3 text-xs font-bold text-orange-500">
+                    당첨 확인 정보
+                  </p>
 
-              <p className="text-sm leading-relaxed text-gray-600">
-                공주문화관광재단 인스타그램 팔로우 후,
-                <br />
-                DM으로 보내주시면 확인해드립니다.
-              </p>
-            </div>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div className="flex justify-between gap-3">
+                      <span className="font-bold text-gray-500">발급시간</span>
+                      <span className="font-bold text-gray-900">
+                        {issuedAtText}
+                      </span>
+                    </div>
 
-            <button
-              type="button"
-              onClick={saveScreenshot}
-              disabled={isCapturing}
-              className="mb-3 flex w-full touch-manipulation items-center justify-center rounded-full bg-[#632713] py-4 text-lg font-bold text-white shadow-md transition hover:bg-[#4f1f0f] active:scale-[0.99] disabled:bg-gray-300"
-            >
-              {isCapturing ? "이미지 저장 중..." : "결과 이미지 저장하기"}
-            </button>
+                    <div className="flex justify-between gap-3">
+                      <span className="font-bold text-gray-500">인증코드</span>
+                      <span className="font-black text-[#632713]">
+                        {verifyCode}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-6 rounded-2xl border border-dashed border-orange-300 p-4">
+                  <p className="mb-1 text-xs font-bold text-orange-500">
+                    당첨 화면을 저장해 주세요.
+                  </p>
+
+                  <p className="text-sm leading-relaxed text-gray-600">
+                    공주문화관광재단 인스타그램 팔로우 후,
+                    <br />
+                    DM으로 보내주시면 확인해드립니다.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={saveScreenshot}
+                  disabled={isCapturing}
+                  className="mb-3 flex w-full touch-manipulation items-center justify-center rounded-full bg-[#632713] py-4 text-lg font-bold text-white shadow-md transition hover:bg-[#4f1f0f] active:scale-[0.99] disabled:bg-gray-300"
+                >
+                  {isCapturing ? "이미지 저장 중..." : "결과 이미지 저장하기"}
+                </button>
+              </>
+            )}
+
+            {!isWinner && (
+              <div className="mb-6 rounded-2xl border border-dashed border-orange-300 p-4">
+                <p className="mb-1 text-xs font-bold text-orange-500">
+                  참여해주셔서 감사합니다.
+                </p>
+
+                <p className="text-sm leading-relaxed text-gray-600">
+                  아쉽지만 이번에는 당첨되지 않았어요.
+                  <br />
+                  공주의 다양한 소식도 함께 확인해보세요.
+                </p>
+              </div>
+            )}
 
             <a
               href="https://www.instagram.com/gjcf_2020/"
